@@ -5,7 +5,7 @@ from flask_login import current_user, login_user, logout_user, login_required
 from app.models import User, Vote
 from werkzeug.urls import url_parse
 from sqlalchemy import update
-import csv
+import csv, random
 
 users =[
 ]
@@ -18,6 +18,20 @@ year2=2001
 yearDictionary = dict()
 cities = [
 ]
+with open('years.txt', mode='r') as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        line_count = 0
+        for row in csv_reader:
+            yearAndScore ={
+                "year": row["Year"],
+                "value": row["Value"]
+            }
+            if row["Region"] not in cities:
+                cities.append(row["Region"])
+            if (yearDictionary.get(row["Region"])==None):
+                yearDictionary.setdefault(row["Region"], [])
+            yearDictionary.get(row["Region"]).append(yearAndScore)
+            line_count += 1
 
 def Sortandincrease(sub_li, index): 
     l = len(sub_li) 
@@ -55,21 +69,6 @@ def before_request():
         }
         users.append(user)
     Sort(users)
-    with open('years.txt', mode='r') as csv_file:
-        csv_reader = csv.DictReader(csv_file)
-        line_count = 0
-        for row in csv_reader:
-            yearAndScore ={
-                "year": row["Year"],
-                "value": row["Value"]
-            }
-            if row["Region"] not in cities:
-                cities.append(row["Region"])
-            if (yearDictionary.get(row["Region"])==None):
-                yearDictionary.setdefault(row["Region"], [])
-            yearDictionary.get(row["Region"]).append(yearAndScore)
-            line_count += 1
-    
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -127,11 +126,20 @@ def game():
             if (user["location"]==current_user.location):
                 sameplace.append(user)
     votes = current_user.votes.all()
-    first = 2000
-    for vote in votes:
-        if (vote.year1 == first):
-            first+=1
-    second = first+1
+    found = True
+    while (found):
+        found = False
+        first = random.randint(2000, 2019)
+        second = random.randint(2000, 2019)
+        if(first == second):
+            if (first==2019):
+                second= random.randint(2000, 2018)
+            else:
+                second=second+1
+        for vote in votes:
+            if (vote.year1 == first and vote.year2 == second):
+                found = True
+                break
     return render_template('game.html', users=sameplace, year1=first, year2=second)
 
 @app.route('/button', methods=['GET', 'POST'])
@@ -150,19 +158,33 @@ def button():
         vote = Vote(year1=first, year2=second, answer="?", author=current_user)
         db.session.add(vote)
         db.session.commit()
-        first+=1
-        second+=1
+        votes = current_user.votes.all()
+        found = True
+        while (found):
+            found = False
+            first = random.randint(2000, 2019)
+            second = random.randint(2000, 2019)
+            if(first == second):
+                if (first==2019):
+                    second= random.randint(2000, 2018)
+                else:
+                    second=second+1
+            for vote in votes:
+                if (vote.year1 == first and vote.year2 == second):
+                    found = True
+                    break
         score = current_user.score
         return jsonify(users=sameplace, year1=first, year2=second, score = score, name = current_user.username)
     
     rank1 = 0
     rank2 = 0
     for year in yearDictionary.get(current_user.location):
-        if (int(year["year"])==year1):
+        if (int(year["year"])==first):
             rank1 = int(year["value"])
-        if (int(year["year"])==year2):
+        if (int(year["year"])==second):
             rank2 = int(year["value"])
     if(buttonPressed==1):
+        print (rank1, rank2)
         vote = Vote(year1=first, year2=second, answer=str(first), author=current_user)
         db.session.add(vote)
         db.session.commit()
@@ -172,6 +194,7 @@ def button():
             db.session.commit()
             Sortandincrease(sameplace, current_user.id)
     if(buttonPressed==2):
+        print (rank1, rank2)
         vote = Vote(year1=first, year2=second, answer=str(second), author=current_user)
         db.session.add(vote)
         db.session.commit()
@@ -181,6 +204,7 @@ def button():
             db.session.commit()
             Sortandincrease(sameplace, current_user.id)
     if(buttonPressed==3):
+        print (rank1, rank2)
         vote = Vote(year1=first, year2=second, answer="=", author=current_user)
         db.session.add(vote)
         db.session.commit()
@@ -189,8 +213,21 @@ def button():
             u.increase_score(50)
             db.session.commit()
             Sortandincrease(sameplace, current_user.id)
-    first+=1
-    second+=1
+    votes = current_user.votes.all()
+    found = True
+    while (found):
+        found = False
+        first = random.randint(2000, 2019)
+        second = random.randint(2000, 2019)
+        if(first == second):
+            if (first==2019):
+                second= random.randint(2000, 2018)
+            else:
+                second=second+1
+        for vote in votes:
+            if (vote.year1 == first and vote.year2 == second):
+                found = True
+                break
     score = current_user.score
 
     return jsonify(users=sameplace, year1=first, year2=second, score = score, name = current_user.username)
