@@ -1,5 +1,13 @@
 $(document).ready(function(){
     updateScoreboard()
+    if (finished){
+        $("#year1").prop('disabled', true)
+        $("#year2").prop('disabled', true)
+        $("#equals").prop('disabled', true)
+        $("#idk").prop('disabled', true)
+        $("#match").removeClass("hidden")
+        $("#match").text("You have responded to all pairs of years!")
+    }
     $(document).on("click", "#year1" , function() {
         buttonClick(1)
     })
@@ -30,17 +38,17 @@ function wrapUser(user, index)
     score=user["score"]
     if (index==0)
     {
-        var wrap = '<div id="firstplace"> <img class = "icon" src ="https://www.nhlbi.nih.gov/sites/default/files/styles/square_crop/public/2017-12/genericavatar_55.png?itok=XOsJyktf">'+name+'<span style="float:right">'+score+' points</span></div>'
+        var wrap = '<div id="firstplace">'+name+'<span style="float:right">'+score+' points</span></div>'
         return wrap
     }
     else if (index==1 || index==2)
     {
-        var wrap = '<div class="secondthird"> <img class = "icon" src ="https://www.nhlbi.nih.gov/sites/default/files/styles/square_crop/public/2017-12/genericavatar_55.png?itok=XOsJyktf">'+name+'<span style="float:right">'+score+' points</span></div>'
+        var wrap = '<div class="secondthird">'+name+'<span style="float:right">'+score+' points</span></div>'
         return wrap
     }
     else
     {
-        var wrap = '<div class="scorers"> <img class = "icon" src ="https://www.nhlbi.nih.gov/sites/default/files/styles/square_crop/public/2017-12/genericavatar_55.png?itok=XOsJyktf">'+name+'<span style="float:right">'+score+' points</span></div>'
+        var wrap = '<div class="scorers">'+name+'<span style="float:right">'+score+' points</span></div>'
         return wrap
     }
 }
@@ -62,10 +70,62 @@ function buttonClick(button)
             users=result["users"]
             userScore=result["score"]
             name=result["name"]
+            voted=result["voted"]
+            checker1=result["checker1"]
+            checker2=result["checker2"]
+            checker3=result["checker3"]
+            checker4=result["checker4"]
+            finished=result["finished"]
             $("#year1").text(year1)
             $("#year2").text(year2)
             $("#points").text(userScore)
             updateScoreboard()
+            if(finished)
+            {
+                $("#none").addClass("hidden")
+                $("#farmingdale").addClass("hidden")
+                $("#laguardia").addClass("hidden")
+                $("#teterboro").addClass("hidden")
+                $("#votesDiv").addClass("hidden")
+                $("#year1").prop('disabled', true)
+                $("#year2").prop('disabled', true)
+                $("#equals").prop('disabled', true)
+                $("#idk").prop('disabled', true)
+                $("#match").removeClass("hidden")
+                $("#match").text("You have responded to all pairs of years!")
+            }
+            else if (voted && !finished){
+                $("#none").addClass("hidden")
+                $("#farmingdale").addClass("hidden")
+                $("#laguardia").addClass("hidden")
+                $("#teterboro").addClass("hidden")
+                $("#votesDiv").addClass("hidden")
+                $("#match").removeClass("hidden")
+                if(checker1){
+                    $("#farmingdale").removeClass("hidden")
+                }
+                if(checker2){
+                    $("#laguardia").removeClass("hidden")
+                }
+                if(checker3){
+                    $("#teterboro").removeClass("hidden")
+                }
+                if(checker4){
+                    $("#votesDiv").removeClass("hidden")
+                }
+                if(!checker1 && !checker2 && !checker3 && !checker4)
+                {
+                    $("#none").removeClass("hidden")
+                }
+            }
+            else{
+                $("#match").addClass("hidden")
+                $("#none").addClass("hidden")
+                $("#farmingdale").addClass("hidden")
+                $("#laguardia").addClass("hidden")
+                $("#teterboro").addClass("hidden")
+                $("#votesDiv").addClass("hidden")
+            }
         },
         error: function(request, status, error){
             console.log("Error");
