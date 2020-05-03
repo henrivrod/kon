@@ -15,43 +15,43 @@ years =[
 ]
 year1=2000
 year2=2001
-pairs = [
-    [2011,2013],
-    [2011,2017],
-    [2011,2015],
-    [2013,2015],
-    [2016,2017],
-    [2015,2017],
-    [2013,2016],
-    [2015,2016],
-    [2013,2017],
-    [2017,2016],
-    [2017,2015],
-    [2016,2011],
-    [2017,2013],
-    [2017,2011],
-    [2016,2015],
-    [2015,2011],
-    [2016,2013],
-    [2015,2013],
-    [2011,2016],
-    [2013,2011]
+yearDictionary = dict()
+cities = [
 ]
-cities = ["New York"]
-voteDictionary={
-    "2015":3,
-    "2011":3,
-    "2013":2,
-    "2016":1,
-    "2017":1
-}
+with open('years.csv', mode='r') as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        line_count = 0
+        for row in csv_reader:
+            yearAndScore ={
+                "year": row["Year"],
+                "value": row["Value"]
+            }
+            if row["Region"] not in cities:
+                cities.append(row["Region"])
+            if (yearDictionary.get(row["Source Type"])==None):
+                yearDictionary.setdefault(row["Source Type"], dict())
+            if ((yearDictionary.get(row["Source Type"])).get(row["Region"])==None):
+                (yearDictionary.get(row["Source Type"])).setdefault(row["Region"], [])
+            (yearDictionary.get(row["Source Type"])).get(row["Region"]).append(yearAndScore)
+            line_count += 1
+voteDictionary = dict()
+votes = Vote.query.all()
+for vote in votes:
+    if (vote.answer != "?" and vote.answer != "="):
+        year = int(vote.answer)
+        if (voteDictionary.get(vote.author.location)==None):
+            voteDictionary.setdefault(vote.author.location, dict())
+        if(voteDictionary.get(vote.author.location).get(year)==None):
+            voteDictionary.get(vote.author.location).setdefault(year, 1)
+        else:
+            score = voteDictionary.get(vote.author.location).get(year)
+            voteDictionary.get(vote.author.location).update({year: score+1})
 
-def Sortandincrease(sub_li, index, score): 
+def Sortandincrease(sub_li, index): 
     l = len(sub_li) 
     for i in range(0, l): 
         if (sub_li[i]["id"]==index):
-            sub_li[i]["score"]=score
-    for i in range(0, l): 
+            sub_li[i]["score"]+=50
         for j in range(0, l-i-1): 
             if (sub_li[j]["score"] < sub_li[j + 1]["score"]): 
                 tempo = sub_li[j] 
@@ -156,19 +156,23 @@ def before_request():
     users=[]
     current = User.query.all()
     for person in current:
-        if(person.location == "New York"):
-            user = {
-                "id": person.id,
-                "name": person.username,
-                "score": person.score,
-                "location": person.location
-            }
-            users.append(user)
+        user = {
+            "id": person.id,
+            "name": person.username,
+            "score": person.score,
+            "location": person.location
+        }
+        users.append(user)
     Sort(users)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    global sameplace
+    sameplace = []
     if current_user.is_authenticated:
+        for user in users:
+            if (user["location"]==current_user.location):
+                sameplace.append(user)
         return redirect(url_for('game'))
     form = LoginForm()
     if form.validate_on_submit():
@@ -198,7 +202,7 @@ def register():
         return redirect(url_for('game'))
     form = RegistrationForm()
     if form.validate_on_submit():
-        user = User(username=form.username.data, email=form.username.data, score =0, location = form.location.data)
+        user = User(username=form.username.data, email=form.email.data, score =0, location = form.location.data)
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
@@ -210,16 +214,28 @@ def register():
 @app.route('/game')
 @login_required
 def game():
-    finished=False
+    global year1
+    global year2
+    if not sameplace:
+        for user in users:
+            if (user["location"]==current_user.location):
+                sameplace.append(user)
     votes = current_user.votes.all()
-    if(len(votes)>=len(pairs)):
-        finished=True
-        first=pairs[0][0]
-        second=pairs[0][1]
-    else:
-        first=pairs[len(votes)][0]
-        second=pairs[len(votes)][1]
-    return render_template('game.html', users=users, year1=first, year2=second, finished=finished)
+    found = True
+    while (found):
+        found = False
+        first = random.randint(2000, 2019)
+        second = random.randint(2000, 2019)
+        if(first == second):
+            if (first==2019):
+                second= random.randint(2000, 2018)
+            else:
+                second=second+1
+        for vote in votes:
+            if (vote.year1 == first and vote.year2 == second):
+                found = True
+                break
+    return render_template('game.html', users=sameplace, year1=first, year2=second)
 
 @app.route('/button', methods=['GET', 'POST'])
 def button():
@@ -232,121 +248,124 @@ def button():
     buttonPressed = int(json_data["button"])
     first = int(json_data["year1"])
     second = int(json_data["year2"])
-    checker1=False
-    checker2=False
-    checker3=False
-    checker4=False
+    stationChecker=False
+    satChecker=False
+    voteChecker=False
     voted=False
-    finished=False
 
     if (buttonPressed==4):
         vote = Vote(year1=first, year2=second, answer="?", author=current_user)
         db.session.add(vote)
         db.session.commit()
         votes = current_user.votes.all()
-        if(len(votes)>len(pairs)):
-            finished=True
-        else:
-            first=pairs[len(votes)][0]
-            second=pairs[len(votes)][1]
+        found = True
+        while (found):
+            found = False
+            first = random.randint(2000, 2019)
+            second = random.randint(2000, 2019)
+            if(first == second):
+                if (first==2019):
+                    second= random.randint(2000, 2018)
+                else:
+                    second=second+1
+            for vote in votes:
+                if (vote.year1 == first and vote.year2 == second):
+                    found = True
+                    break
         score = current_user.score
-        return jsonify(users=users, year1=first, year2=second, score = score, name = current_user.username, checker1=checker1, checker2=checker2, checker3=checker3, checker4=checker4, voted=voted, finished=finished)    
+        return jsonify(users=sameplace, year1=first, year2=second, score = score, name = current_user.username, satChecker=satChecker, stationChecker=stationChecker, voteChecker=voteChecker, voted=voted)    
     
     voted=True
-    for item in nyTest[0]["temps"]:
-        if(item["year"]==first):
-            farm1=item["temperature"]
-        if(item["year"]==second):
-            farm2=item["temperature"]
-    for item in nyTest[1]["temps"]:
-        if(item["year"]==first):
-            lag1=item["temperature"]
-        if(item["year"]==second):
-            lag2=item["temperature"]
-    for item in nyTest[2]["temps"]:
-        if(item["year"]==first):
-            tet1=item["temperature"]
-        if(item["year"]==second):
-            tet2=item["temperature"]
-    votes1=voteDictionary.get(str(first))
-    votes2=voteDictionary.get(str(second))
+    weather1 = 0
+    weather2 = 0
+    rainfall1=0
+    rainfall2=0
+    votes1=voteDictionary.get(current_user.location).get(first, -1)
+    votes2=voteDictionary.get(current_user.location).get(second, -1)
+    for year in yearDictionary.get("Weather Station").get(current_user.location):
+        if (int(year["year"])==first):
+            weather1 = int(year["value"])
+        if (int(year["year"])==second):
+            weather2 = int(year["value"])
+    for year in yearDictionary.get("Rainfall").get(current_user.location):
+        if (int(year["year"])==first):
+            rainfall1 = int(year["value"])
+        if (int(year["year"])==second):
+            rainfall2 = int(year["value"])
     if(buttonPressed==1):
-        print (farm1, farm2, lag1, lag2, tet1, tet2, votes1, votes2)
+        print (weather1, weather2, rainfall1, rainfall2, votes1, votes2)
         vote = Vote(year1=first, year2=second, answer=str(first), author=current_user)
         db.session.add(vote)
         db.session.commit()
-        if(farm1<farm2):
+        if(rainfall1>rainfall2):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker1=True
-        if(lag1<lag2):
+            satChecker=True
+        if(weather1>weather2):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker2=True
-        if(tet1<tet2):
-            u = User.query.get(current_user.id)
-            u.increase_score(50)
-            checker3=True
+            stationChecker=True
         if(votes1>votes2):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker4=True
-        voteDictionary.update({first: votes1+1})
+            voteChecker=True
+        voteDictionary.get(current_user.location).update({first: votes1+1})
         db.session.commit()
-        Sortandincrease(users, current_user.id, current_user.score)
+        Sortandincrease(sameplace, current_user.id)
     if(buttonPressed==2):
-        print (farm1, farm2, lag1, lag2, tet1, tet2, votes1, votes2)
+        print (weather1, weather2, rainfall1, rainfall2)
         vote = Vote(year1=first, year2=second, answer=str(second), author=current_user)
         db.session.add(vote)
         db.session.commit()
-        if(farm2<farm1):
+        if(rainfall2>rainfall1):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker1=True
-        if(lag2<lag1):
+            satChecker=True
+        if(weather2>weather1):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker2=True
-        if(tet2<tet1):
-            u = User.query.get(current_user.id)
-            u.increase_score(50)
-            checker3=True
+            stationChecker=True
         if(votes2>votes1):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker4=True
-        voteDictionary.update({second: votes2+1})
+            voteChecker=True
+        voteDictionary.get(current_user.location).update({second: votes2+1})
         db.session.commit()
-        Sortandincrease(users, current_user.id, current_user.score)
+        Sortandincrease(sameplace, current_user.id)
     if(buttonPressed==3):
-        print (farm1, farm2, lag1, lag2, tet1, tet2, votes1, votes2)
+        print (weather1, weather2, rainfall1, rainfall2)
         vote = Vote(year1=first, year2=second, answer="=", author=current_user)
         db.session.add(vote)
         db.session.commit()
-        if(farm1==farm2):
+        if(rainfall1==rainfall2):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker1=True
-        if(lag1==lag2):
+            satChecker=True
+        if(weather1==weather2):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker2=True
-        if(tet1==tet2):
-            u = User.query.get(current_user.id)
-            u.increase_score(50)
-            checker3=True
+            stationChecker=True
         if(votes1==votes2):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker4=True
+            voteChecker=True
         db.session.commit()
-        Sortandincrease(users, current_user.id, current_user.score)
-    score = current_user.score
+        Sortandincrease(sameplace, current_user.id)
     votes = current_user.votes.all()
-    if(len(votes)>=len(pairs)):
-            finished=True
-    else:
-        first=pairs[len(votes)][0]
-        second=pairs[len(votes)][1]
+    found = True
+    while (found):
+        found = False
+        first = random.randint(2000, 2019)
+        second = random.randint(2000, 2019)
+        if(first == second):
+            if (first==2019):
+                second= random.randint(2000, 2018)
+            else:
+                second=second+1
+        for vote in votes:
+            if (vote.year1 == first and vote.year2 == second):
+                found = True
+                break
     score = current_user.score
-    return jsonify(users=users, year1=first, year2=second, score = score, name = current_user.username, checker1=checker1, checker2=checker2, checker3=checker3, checker4=checker4, voted=voted, finished=finished)
+
+    return jsonify(users=sameplace, year1=first, year2=second, score = score, name = current_user.username, satChecker=satChecker, stationChecker=stationChecker, voteChecker=voteChecker, voted=voted)
