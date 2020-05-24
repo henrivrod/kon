@@ -2,15 +2,14 @@
 
 {% block content %}
     <head>
-        <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+        <script src="http://code.jquery.com/jquery-3.3.1.min.js"></script>
         <script src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.2/jquery-ui.js"></script>
-        <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+        <link rel="stylesheet" href="http://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css">
         <script type="text/javascript" src="{{ url_for('static', filename = 'kon.js') }}"></script>
     <script> 
         users = {{users|tojson}}
-        finished= {{finished|tojson}}
     </script>
     <style>
         #question
@@ -108,7 +107,7 @@
         <div class = "row">
             <div class = "col-md-8">
                 <div id="question">
-                    Which winter was colder in NYC?
+                    Which year was better?
                 </div>
                 <div id="buttons" class="row">
                     <button id="year1">
@@ -139,28 +138,19 @@
                     No Sources
                 </div>
                 <div class="row">
-                    <div class="col-md-3 hidden" id="farmingdale">
-                        <img src="/static/farmingdale.jpg">
-                        <div class="text-center medium">
-                            Farmingdale Airport
+                    <div class="col-md-4 hidden" id="satImage">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/2/27/FP_Satellite_icon.svg">
+                        <div class="text-center medium" id="satellite">
                         </div>
                     </div>
-                    <div class="col-md-3 hidden" id = "laguardia">
-                        <img src="/static/laguardia.jpg">
-                        <div class="text-center medium">
-                            Laguardia Airport
+                    <div class="col-md-4 hidden" id = "stationImage">
+                        <img src="https://image.flaticon.com/icons/svg/53/53658.svg">
+                        <div class="text-center medium" id="station">
                         </div>
                     </div>
-                    <div class="col-md-3 hidden" id="teterboro">
-                        <img src="/static/teterboro.jpg">
-                        <div class="text-center medium">
-                            Teterboro Airport
-                        </div>
-                    </div>
-                    <div class="col-md-3 hidden" id="votesDiv">
+                    <div class="col-md-4 hidden" id="userImage">
                         <img src="https://thumbs.dreamstime.com/b/people-vector-icon-group-people-symbol-illustration-businessman-group-logo-multiple-users-silhouette-icon-people-vector-icon-153483842.jpg">
-                        <div class="text-center medium">
-                            Other Users
+                        <div class="text-center medium" id="userNumbers">
                         </div>
                     </div>
                 </div>

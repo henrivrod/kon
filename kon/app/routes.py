@@ -15,43 +15,50 @@ years =[
 ]
 year1=2000
 year2=2001
-pairs = [
-    [2011,2013],
-    [2011,2017],
-    [2011,2015],
-    [2013,2015],
-    [2016,2017],
-    [2015,2017],
-    [2013,2016],
-    [2015,2016],
-    [2013,2017],
-    [2017,2016],
-    [2017,2015],
-    [2016,2011],
-    [2017,2013],
-    [2017,2011],
-    [2016,2015],
-    [2015,2011],
-    [2016,2013],
-    [2015,2013],
-    [2011,2016],
-    [2013,2011]
+yearDictionary = dict()
+cities = [
 ]
-cities = ["New York"]
-voteDictionary={
-    "2015":3,
-    "2011":3,
-    "2013":2,
-    "2016":1,
-    "2017":1
-}
 
-def Sortandincrease(sub_li, index, score): 
+#sets up dictionary on start to keep year data for satellite and weather station. dictionary is set up by source type then city and in each city dictionary there are variable holding year and score. typeif new city encountered, also added to cities list
+with open('years.csv', mode='r') as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        line_count = 0
+        for row in csv_reader:
+            yearAndScore ={
+                "year": row["Year"],
+                "value": row["Value"]
+            }
+            if row["Region"] not in cities:
+                cities.append(row["Region"])
+            if (yearDictionary.get(row["Source Type"])==None):
+                yearDictionary.setdefault(row["Source Type"], dict())
+            if ((yearDictionary.get(row["Source Type"])).get(row["Region"])==None):
+                (yearDictionary.get(row["Source Type"])).setdefault(row["Region"], [])
+            (yearDictionary.get(row["Source Type"])).get(row["Region"]).append(yearAndScore)
+            line_count += 1
+
+#sets up dictionary to hold votes in. dictionary set up by location then the 2 years compared and then each answer has a number of times responded
+voteDictionary = dict()
+votes = Vote.query.all()
+for vote in votes:
+    yearDuo = str(max(vote.year1, vote.year2))+","+str(min(vote.year1,vote.year2))
+    if (voteDictionary.get(vote.author.location)==None):
+        voteDictionary.setdefault(vote.author.location, dict())
+    if(voteDictionary.get(vote.author.location).get(yearDuo)==None):
+        voteDictionary.get(vote.author.location).setdefault(yearDuo, dict())
+        voteDictionary.get(vote.author.location).get(yearDuo).setdefault(vote.answer, 1)
+    elif (voteDictionary.get(vote.author.location).get(yearDuo).get(vote.answer)==None):
+        voteDictionary.get(vote.author.location).get(yearDuo).setdefault(vote.answer, 1)
+    else:
+        score = voteDictionary.get(vote.author.location).get(yearDuo).get(vote.answer)
+        voteDictionary.get(vote.author.location).get(yearDuo).update({vote.answer: score+1})
+
+#sorts index of sub_li by score after increasing score of user at the index given
+def Sortandincrease(sub_li, index): 
     l = len(sub_li) 
     for i in range(0, l): 
         if (sub_li[i]["id"]==index):
-            sub_li[i]["score"]=score
-    for i in range(0, l): 
+            sub_li[i]["score"]+=50
         for j in range(0, l-i-1): 
             if (sub_li[j]["score"] < sub_li[j + 1]["score"]): 
                 tempo = sub_li[j] 
@@ -59,6 +66,7 @@ def Sortandincrease(sub_li, index, score):
                 sub_li[j + 1]= tempo 
     return sub_li 
 
+#sorts index of sub_li
 def Sort(sub_li):
     l = len(sub_li) 
     for i in range(0, l): 
@@ -69,113 +77,44 @@ def Sort(sub_li):
                 sub_li[j + 1]= tempo 
     return sub_li 
 
-nyTest= [
-    {
-        "name":"Farmingdale Republic Airport",
-        "temps":
-        [
-            {
-                "year":2011,
-                "temperature":30.37
-            },
-            {
-                "year":2013,
-                "temperature":35.83
-            },
-            {
-                "year":2015,
-                "temperature":30.73
-            },
-            {
-                "year":2016,
-                "temperature":40.30
-            },
-            {
-                "year":2017,
-                "temperature":37.77
-            }
-        ]
-    },
-    {
-        "name":"Laguardia Airport",
-        "temps":
-        [
-            {
-                "year":2011,
-                "temperature":34.47
-            },
-            {
-                "year":2013,
-                "temperature":37.67
-            },
-            {
-                "year":2015,
-                "temperature":31.60
-            },
-            {
-                "year":2016,
-                "temperature":41.63
-            },
-            {
-                "year":2017,
-                "temperature":40.93
-            }
-        ]
-    },
-    {
-        "name":"Teterboro Airport",
-        "temps":
-        [
-            {
-                "year":2011,
-                "temperature":31.07
-            },
-            {
-                "year":2013,
-                "temperature":36.00
-            },
-            {
-                "year":2015,
-                "temperature":30.00
-            },
-            {
-                "year":2016,
-                "temperature":39.73
-            },
-            {
-                "year":2017,
-                "temperature":38.67
-            }
-        ]
-    }
-]
-
+#when anyone connects to the server, a list of users is reupdated from the database
 @app.before_request
 def before_request():
     global users
     users=[]
     current = User.query.all()
     for person in current:
-        if(person.location == "New York"):
-            user = {
-                "id": person.id,
-                "name": person.username,
-                "score": person.score,
-                "location": person.location
-            }
-            users.append(user)
+        user = {
+            "id": person.id,
+            "name": person.username,
+            "score": person.score,
+            "location": person.location
+        }
+        users.append(user)
     Sort(users)
 
+#route for login page
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    global sameplace
+    sameplace = []
+    #creates list of users that are in the same place as current user if their login works and sends them to the game page
     if current_user.is_authenticated:
+        for user in users:
+            if (user["location"]==current_user.location):
+                sameplace.append(user)
         return redirect(url_for('game'))
+
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
+        
+        #sends error message if not logged in correctly 
         if user is None or not user.check_password(form.password.data):
             flash('Invalid username or password')
             return redirect(url_for('login'))
+
+        #logs in user and sends them to next page or game    
         login_user(user, remember=form.remember_me.data)
         for user in users:
             if (user["location"]==current_user.location):
@@ -184,43 +123,69 @@ def login():
         if not next_page or url_parse(next_page).netloc != '':
             next_page = url_for('game')
         return redirect(next_page)
+
     return render_template('login.html', title='Sign In', form=form)
 
+#logout route
 @app.route('/logout')
 def logout():
     logout_user()
     return redirect(url_for('game'))
 
+#registration page route
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     global cities
+    #automatically sent to game if already logged in
     if current_user.is_authenticated:
         return redirect(url_for('game'))
+
+
     form = RegistrationForm()
     if form.validate_on_submit():
-        user = User(username=form.username.data, email=form.username.data, score =0, location = form.location.data)
+        #if form submittd correctly then new user is created and added to database and user is sent to login
+        user = User(username=form.username.data, email=form.email.data, score =0, location = form.location.data)
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
         flash('Congratulations, you are now a registered user!')
         return redirect(url_for('login'))
+
     return render_template('register.html', title='Register', form=form, cities=cities)
 
+#actual game route
 @app.route('/')
 @app.route('/game')
 @login_required
 def game():
-    finished=False
-    votes = current_user.votes.all()
-    if(len(votes)>=len(pairs)):
-        finished=True
-        first=pairs[0][0]
-        second=pairs[0][1]
-    else:
-        first=pairs[len(votes)][0]
-        second=pairs[len(votes)][1]
-    return render_template('game.html', users=users, year1=first, year2=second, finished=finished)
+    global year1
+    global year2
 
+    #creates sameplace list if not already there
+    if not sameplace:
+        for user in users:
+            if (user["location"]==current_user.location):
+                sameplace.append(user)
+    
+    #randomly decides 2 years within range of 2000 and 2019 and checks if user has already answered years in that order - if so, finds 2 random years again and again until it is new to user and then sends the user those years to ask
+    votes = current_user.votes.all()
+    found = True
+    while (found):
+        found = False
+        first = random.randint(2000, 2019)
+        second = random.randint(2000, 2019)
+        if(first == second):
+            if (first==2019):
+                second= random.randint(2000, 2018)
+            else:
+                second=second+1
+        for vote in votes:
+            if (vote.year1 == first and vote.year2 == second):
+                found = True
+                break
+    return render_template('game.html', users=sameplace, year1=first, year2=second)
+
+#interaction between front end and backend when user clicks a button to make a vote
 @app.route('/button', methods=['GET', 'POST'])
 def button():
     global users
@@ -228,125 +193,200 @@ def button():
     global year1
     global year2
 
+    #retrieves json data from javascript (2 years and button picked) and sets up variables for them
     json_data = request.get_json()
     buttonPressed = int(json_data["button"])
     first = int(json_data["year1"])
     second = int(json_data["year2"])
-    checker1=False
-    checker2=False
-    checker3=False
-    checker4=False
-    voted=False
-    finished=False
 
+    #booleans for checking if user answered correctly and/or at all (used later)
+    stationChecker=False
+    satChecker=False
+    voteChecker=False
+    voted=False
+
+    #years set up to easily search in database
+    couple = str(max(first, second))+","+str(min(first,second))
+    
+    #total number of votes to easily calculate percentage of users which user agrees with
+    total=0
+
+    #for user choosing "I don't know"
     if (buttonPressed==4):
+        #adds vote to database
         vote = Vote(year1=first, year2=second, answer="?", author=current_user)
         db.session.add(vote)
         db.session.commit()
+
+        #finds next 2 years to ask user
         votes = current_user.votes.all()
-        if(len(votes)>len(pairs)):
-            finished=True
-        else:
-            first=pairs[len(votes)][0]
-            second=pairs[len(votes)][1]
+        found = True
+        while (found):
+            found = False
+            first = random.randint(2000, 2019)
+            second = random.randint(2000, 2019)
+            if(first == second):
+                if (first==2019):
+                    second= random.randint(2000, 2018)
+                else:
+                    second=second+1
+            for vote in votes:
+                if (vote.year1 == first and vote.year2 == second):
+                    found = True
+                    break
+
         score = current_user.score
-        return jsonify(users=users, year1=first, year2=second, score = score, name = current_user.username, checker1=checker1, checker2=checker2, checker3=checker3, checker4=checker4, voted=voted, finished=finished)    
+
+        #adds new vote to proper voteDictionary spot and creates one if there wasn't
+        if(voteDictionary.get(current_user.location).get(couple)==None):
+            voteDictionary.get(current_user.location).setdefault(couple, dict())
+            voteDictionary.get(current_user.location).get(couple).setdefault("?", 1)
+        elif (voteDictionary.get(current_user.location).get(couple).get("?")==None):
+            voteDictionary.get(current_user.location).get(couple).setdefault("?", 1)
+        else:
+            idkAmount = voteDictionary.get(current_user.location).get(couple).get("?")
+            voteDictionary.get(current_user.location).get(couple).update({"?": idkAmount+1})
+        
+        #sends necessary data back to front end
+        return jsonify(users=sameplace, year1=first, year2=second, score = score, name = current_user.username, satChecker=satChecker, stationChecker=stationChecker, voteChecker=voteChecker, voted=voted)    
     
+    #this is in the case the user didn't vote for I Dont Know
     voted=True
-    for item in nyTest[0]["temps"]:
-        if(item["year"]==first):
-            farm1=item["temperature"]
-        if(item["year"]==second):
-            farm2=item["temperature"]
-    for item in nyTest[1]["temps"]:
-        if(item["year"]==first):
-            lag1=item["temperature"]
-        if(item["year"]==second):
-            lag2=item["temperature"]
-    for item in nyTest[2]["temps"]:
-        if(item["year"]==first):
-            tet1=item["temperature"]
-        if(item["year"]==second):
-            tet2=item["temperature"]
-    votes1=voteDictionary.get(str(first))
-    votes2=voteDictionary.get(str(second))
+
+    #weather and rainfall variables set up for each year
+    weather1 = 0
+    weather2 = 0
+    rainfall1=0
+    rainfall2=0
+
+    #gets current number of votes for year1, year2 and = when comparing only those two years - will create new dictionary for a couple if it hasn't been made yet
+    if (voteDictionary.get(current_user.location).get(couple)==None):
+        voteDictionary.get(current_user.location).setdefault(couple, dict())
+    votes1=voteDictionary.get(current_user.location).get(couple).get(str(first), 0)
+    votes2=voteDictionary.get(current_user.location).get(couple).get(str(second), 0)
+    votes3=voteDictionary.get(current_user.location).get(couple).get("=", 0)
+    votes4=voteDictionary.get(current_user.location).get(couple).get("?", 0)
+
+    #total number of votes increased to be accurate - need this and percent later to send percent of voters agreeing with user
+    total=total+votes1+votes2+votes3+votes4
+    percent=0
+
+    #gives values to weather and rainfall variables from data in dictionary
+    for year in yearDictionary.get("Weather Station").get(current_user.location):
+        if (int(year["year"])==first):
+            weather1 = int(year["value"])
+        if (int(year["year"])==second):
+            weather2 = int(year["value"])
+    for year in yearDictionary.get("Rainfall").get(current_user.location):
+        if (int(year["year"])==first):
+            rainfall1 = int(year["value"])
+        if (int(year["year"])==second):
+            rainfall2 = int(year["value"])
+    
+    #if user chooses year1
     if(buttonPressed==1):
-        print (farm1, farm2, lag1, lag2, tet1, tet2, votes1, votes2)
+        #adds vote to database
         vote = Vote(year1=first, year2=second, answer=str(first), author=current_user)
         db.session.add(vote)
         db.session.commit()
-        if(farm1<farm2):
+
+        #if rainfall for year 1 is greater than year 2, increases user score by 50 and sets satellite checker to true, same for weather and station checker
+        if(rainfall1>rainfall2):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker1=True
-        if(lag1<lag2):
+            satChecker=True
+        if(weather1>weather2):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker2=True
-        if(tet1<tet2):
+            stationChecker=True
+        
+        #checks that the votes for year 1 when looking at the 2 is higher than votes for year 2 or for equals - if so, user score goes up and vote Checker set to true, percent also calculated
+        if(votes1>votes2 and votes1>votes3):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker3=True
-        if(votes1>votes2):
-            u = User.query.get(current_user.id)
-            u.increase_score(50)
-            checker4=True
-        voteDictionary.update({first: votes1+1})
-        db.session.commit()
-        Sortandincrease(users, current_user.id, current_user.score)
+            voteChecker=True
+            percent=int(float(votes1)/float(total)*100)
+        
+        #increases number of votes for that year in that couple in the vote dictionary 
+        amount1=voteDictionary.get(current_user.location).get(couple).get(first, 0)
+        voteDictionary.get(current_user.location).get(couple).update({first: amount1+1})
+
+        #increases user's score in users list and sorts
+        Sortandincrease(sameplace, current_user.id)
+
+        #weather and rainfall set to the first year values so user can see what the value of their answer was
+        weather=weather1
+        rainfall=rainfall1
+
+    #if user chose year 2 - everything within basically the same function as year 1
     if(buttonPressed==2):
-        print (farm1, farm2, lag1, lag2, tet1, tet2, votes1, votes2)
+        print (weather1, weather2, rainfall1, rainfall2, votes1, votes2)
         vote = Vote(year1=first, year2=second, answer=str(second), author=current_user)
         db.session.add(vote)
         db.session.commit()
-        if(farm2<farm1):
+        if(rainfall2>rainfall1):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker1=True
-        if(lag2<lag1):
+            satChecker=True
+        if(weather2>weather1):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker2=True
-        if(tet2<tet1):
+            stationChecker=True
+        if(votes2>votes1 and votes2>votes3):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker3=True
-        if(votes2>votes1):
-            u = User.query.get(current_user.id)
-            u.increase_score(50)
-            checker4=True
-        voteDictionary.update({second: votes2+1})
+            voteChecker=True
+            percent=int(float(votes2)/float(total)*100)
+        amount2=voteDictionary.get(current_user.location).get(couple).get(second, 0)
+        voteDictionary.get(current_user.location).get(couple).update({second: amount2})
         db.session.commit()
-        Sortandincrease(users, current_user.id, current_user.score)
+        Sortandincrease(sameplace, current_user.id)
+        weather=weather2
+        rainfall=rainfall2
+    
+    #if user chose equals
     if(buttonPressed==3):
-        print (farm1, farm2, lag1, lag2, tet1, tet2, votes1, votes2)
+        print (weather1, weather2, rainfall1, rainfall2, votes1, votes2)
         vote = Vote(year1=first, year2=second, answer="=", author=current_user)
         db.session.add(vote)
         db.session.commit()
-        if(farm1==farm2):
+        if(rainfall1==rainfall2):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker1=True
-        if(lag1==lag2):
+            satChecker=True
+        if(weather1==weather2):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker2=True
-        if(tet1==tet2):
+            stationChecker=True
+        if(votes3>votes2 and votes3>votes1):
             u = User.query.get(current_user.id)
             u.increase_score(50)
-            checker3=True
-        if(votes1==votes2):
-            u = User.query.get(current_user.id)
-            u.increase_score(50)
-            checker4=True
+            voteChecker=True
+            percent=int(float(votes3)/float(total)*100)
+        equalsAmount=voteDictionary.get(current_user.location).get(couple).get("=", 0)
+        voteDictionary.get(current_user.location).get(couple).update({"=": equalsAmount})
         db.session.commit()
-        Sortandincrease(users, current_user.id, current_user.score)
-    score = current_user.score
+        Sortandincrease(sameplace, current_user.id)
+        weather=weather1
+        rainfall=rainfall1
+    
+    #sets up new years to ask user
     votes = current_user.votes.all()
-    if(len(votes)>=len(pairs)):
-            finished=True
-    else:
-        first=pairs[len(votes)][0]
-        second=pairs[len(votes)][1]
+    found = True
+    while (found):
+        found = False
+        first = random.randint(2000, 2019)
+        second = random.randint(2000, 2019)
+        if(first == second):
+            if (first==2019):
+                second= random.randint(2000, 2018)
+            else:
+                second=second+1
+        for vote in votes:
+            if (vote.year1 == first and vote.year2 == second):
+                found = True
+                break
     score = current_user.score
-    return jsonify(users=users, year1=first, year2=second, score = score, name = current_user.username, checker1=checker1, checker2=checker2, checker3=checker3, checker4=checker4, voted=voted, finished=finished)
+
+    #sends necessary data to front end
+    return jsonify(users=sameplace, year1=first, year2=second, score = score, name = current_user.username, satChecker=satChecker, stationChecker=stationChecker, voteChecker=voteChecker, voted=voted, weather=weather, rainfall=rainfall, percent=percent)

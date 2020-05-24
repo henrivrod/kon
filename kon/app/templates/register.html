@@ -47,6 +47,7 @@ window.onclick = function(event) {
     }
   }
 }
+//all style and script is used for location dropdown button
 </script>
 
     <h1>Register</h1>
@@ -56,6 +57,13 @@ window.onclick = function(event) {
             {{ form.username.label }}<br>
             {{ form.username(size=32) }}<br>
             {% for error in form.username.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </p>
+        <p>
+            {{ form.email.label }}<br>
+            {{ form.email(size=64) }}<br>
+            {% for error in form.email.errors %}
             <span style="color: red;">[{{ error }}]</span>
             {% endfor %}
         </p>
